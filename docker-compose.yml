@@ -1,0 +1,54 @@
+version: "3.9"
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_DB: crypto_agent
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+  api:
+    build: ./packages/api
+    env_file: .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+      - chromadb
+
+  agent:
+    build: ./packages/agent
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+      - chromadb
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  chroma_data:
+  grafana_data:

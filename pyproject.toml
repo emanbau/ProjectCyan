@@ -1,1 +1,209 @@
- 
+ [build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ── Root Monorepo Manifest ────────────────────────────────────────
+# This pyproject.toml lives at the repo root and wires together
+# all five packages. Run `pip install -e ".[all]"` from the root
+# to install every package and their dependencies in one shot.
+
+[project]
+name = "projectcyan"
+version = "0.1.0"
+description = "Autonomous cryptocurrency trading research agent powered by Claude Opus 4.6"
+requires-python = ">=3.11"
+
+# Root-level shared dev dependencies only.
+# Each package declares its own runtime dependencies below.
+dependencies = []
+
+[project.optional-dependencies]
+
+# Install all five packages together
+all = [
+    "cyan-core",
+    "cyan-trading-engine",
+    "cyan-agent",
+    "cyan-api",
+    "cyan-interface",
+]
+
+# Dev tooling
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+    "httpx>=0.27.0",        # for FastAPI test client
+    "ipykernel>=6.29.0",    # for notebook exploration
+]
+
+# ── Workspace Package Paths ───────────────────────────────────────
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent", "src/api", "src/core", "src/interface", "src/trading-engine"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+
+# ══════════════════════════════════════════════════════════════════
+# PACKAGE 1: core
+# Shared models and config. No internal dependencies.
+# ══════════════════════════════════════════════════════════════════
+[project.packages.cyan-core]
+root = "app/core"
+name = "cyan-core"
+version = "0.1.0"
+description = "Shared Pydantic models and settings for agent"
+
+dependencies = [
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+
+# ══════════════════════════════════════════════════════════════════
+# PACKAGE 2: trading-engine
+# Backtester, feature store, and data pipeline.
+# ══════════════════════════════════════════════════════════════════
+[project.packages.cyan-trading-engine]
+root = "app/trading-engine"
+name = "cyan-trading-engine"
+version = "0.1.0"
+description = "Backtesting engine, feature engineering, and market data ingestion"
+
+dependencies = [
+    # Internal
+    "cyan-core",
+
+    # Data ingestion
+    "ccxt>=4.2.0",                    # Exchange API client (Binance, Coinbase, etc.)
+
+    # Data manipulation
+    "pandas>=2.2.0",
+    "polars>=0.20.0",                 # Faster alternative to pandas for large frames
+    "numpy>=1.26.0",
+
+    # Technical indicators
+    "ta>=0.11.0",                     # Pure-Python TA library (RSI, MACD, BB, ATR)
+
+    # Backtesting
+    "vectorbt>=0.26.0",               # Vectorised portfolio simulation
+
+    # ML model (signal generation inside backtester)
+    "lightgbm>=4.3.0",
+    "scikit-learn>=1.4.0",
+
+    # Feature explainability
+    "shap>=0.45.0",
+
+    # Database
+    "psycopg2-binary>=2.9.9",         # PostgreSQL driver
+    "sqlalchemy>=2.0.0",              # ORM for trade/market data tables
+]
+
+
+# ══════════════════════════════════════════════════════════════════
+# PACKAGE 3: agent
+# LangGraph agent, Claude orchestrator, tools, and memory.
+# ══════════════════════════════════════════════════════════════════
+[project.packages.cyan-agent]
+root = "app/agent"
+name = "cyan-agent"
+version = "0.1.0"
+description = "LangGraph agent graph, Claude Opus 4.6 orchestrator, tool definitions, and ChromaDB memory"
+
+dependencies = [
+    # Internal
+    "cyan-core",
+    "cyan-trading-engine",
+
+    # LangChain / LangGraph
+    "langchain>=0.2.0",
+    "langchain-core>=0.2.0",
+    "langchain-anthropic>=0.1.15",    # Claude integration for LangChain
+    "langgraph>=0.1.0",               # Agent state graph orchestration
+
+    # Anthropic SDK (direct, for any calls outside LangChain)
+    "anthropic>=0.25.0",
+
+    # Vector memory
+    "chromadb>=0.5.0",                # Local vector database for research notes
+
+    # Scheduling (research loop heartbeat)
+    "apscheduler>=3.10.0",
+]
+
+
+# ══════════════════════════════════════════════════════════════════
+# PACKAGE 4: api
+# FastAPI HTTP server — TradingView webhooks, operator endpoints.
+# ══════════════════════════════════════════════════════════════════
+[project.packages.cyan-api]
+root = "app/api"
+name = "cyan-api"
+version = "0.1.0"
+description = "FastAPI server exposing research loop controls and TradingView webhook receiver"
+
+dependencies = [
+    # Internal
+    "cyan-core",
+    "cyan-agent",
+
+    # Web framework
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",      # ASGI server
+
+    # HTTP client (for calling exchange APIs outside ccxt if needed)
+    "httpx>=0.27.0",
+
+    # Redis (live feature cache)
+    "redis>=5.0.0",
+]
+
+
+# ══════════════════════════════════════════════════════════════════
+# PACKAGE 5: interface
+# OpenClaw skill — Telegram/Discord human-in-the-loop interface.
+# ══════════════════════════════════════════════════════════════════
+[project.packages.cyan-interface]
+root = "app/interface"
+name = "cyan-interface"
+version = "0.1.0"
+description = "OpenClaw skill for Telegram/Discord human oversight and trade approval"
+
+dependencies = [
+    # Internal
+    "cyan-core",
+
+    # HTTP client (calls the FastAPI server)
+    "httpx>=0.27.0",
+]
+
+
+# ══════════════════════════════════════════════════════════════════
+# TOOL CONFIGURATION
+# ══════════════════════════════════════════════════════════════════
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.isort]
+known-first-party = [
+    "cyan",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=cyan --cov-report=term-missing"
