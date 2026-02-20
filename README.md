@@ -1,8 +1,5 @@
 # ProjectCyan
 Agentic workflows + crypto
-
-# Crypto AI Agent — Project Documentation
-
 ## Table of Contents
 1. [Project Overview](#project-overview)
 2. [Repository Structure](#repository-structure)
